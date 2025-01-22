@@ -145,6 +145,33 @@ def run():
     else:
         print("Unknown optimizer. Please choose between (adam, sgd).")
 
+
+    print("\n---- Evaluating Model Before Training ----")
+    # Evaluate the model on the validation set
+    metrics_output = _evaluate(
+        model,
+        validation_dataloader,
+        class_names,
+        img_size=model.hyperparams['height'],
+        iou_thres=args.iou_thres,
+        conf_thres=args.conf_thres,
+        nms_thres=args.nms_thres,
+        verbose=args.verbose
+    )
+
+    if metrics_output is not None:
+        precision, recall, AP, f1, ap_class = metrics_output
+        evaluation_metrics = [
+            ("validation/precision", precision.mean()),
+            ("validation/recall", recall.mean()),
+            ("validation/mAP", AP.mean()),
+            ("validation/f1", f1.mean())]
+        # logger.list_of_scalars_summary(evaluation_metrics, epoch)
+        logger.list_of_scalars_summary(evaluation_metrics, -1)
+
+
+
+
     # skip epoch zero, because then the calculations for when to evaluate/checkpoint makes more intuitive sense
     # e.g. when you stop after 30 epochs and evaluate every 10 epochs then the evaluations happen after: 10,20,30
     # instead of: 0, 10, 20

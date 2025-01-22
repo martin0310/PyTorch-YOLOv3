@@ -16,3 +16,7 @@ checkpoints/
 logs/
 
 .python-version
+
+
+# ignore .onnx file
+*.onnx 
