@@ -19,4 +19,7 @@ logs/
 
 
 # ignore .onnx file
-*.onnx 
+*.onnx
+
+# ignore run.sh
+run.sh 
