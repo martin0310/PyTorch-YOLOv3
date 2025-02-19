@@ -21,4 +21,7 @@ logs/
 *.onnx
 
 # ignore run.sh
-run.sh 
+run.sh
+
+# ignore coco2014 symlink
+coco2014
