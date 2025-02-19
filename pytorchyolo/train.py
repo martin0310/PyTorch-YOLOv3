@@ -153,9 +153,9 @@ def run():
         validation_dataloader,
         class_names,
         img_size=model.hyperparams['height'],
-        iou_thres=args.iou_thres,
-        conf_thres=args.conf_thres,
-        nms_thres=args.nms_thres,
+        iou_thres=0.5,
+        conf_thres=0.01,
+        nms_thres=0.4,
         verbose=args.verbose
     )
 
