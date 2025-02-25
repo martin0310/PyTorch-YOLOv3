@@ -25,7 +25,7 @@ import matplotlib.patches as patches
 from matplotlib.ticker import NullLocator
 
 
-def detect_directory(model_path, weights_path, img_path, classes, output_path,
+def detect_directory(gpu, model_path, weights_path, img_path, classes, output_path,
                      batch_size=8, img_size=416, n_cpu=8, conf_thres=0.5, nms_thres=0.5):
     """Detects objects on all images in specified directory and saves output images with drawn detections.
 
@@ -51,8 +51,12 @@ def detect_directory(model_path, weights_path, img_path, classes, output_path,
     :type nms_thres: float, optional
     """
     dataloader = _create_data_loader(img_path, batch_size, img_size, n_cpu)
-    model = load_model(model_path, weights_path)
+    model = load_model(model_path, gpu, weights_path)
+
+    device = torch.device(f"cuda:{gpu}" if torch.cuda.is_available() else "cpu")
+
     img_detections, imgs = detect(
+        device,
         model,
         dataloader,
         output_path,
@@ -99,7 +103,7 @@ def detect_image(model, image, img_size=416, conf_thres=0.5, nms_thres=0.5):
     return detections.numpy()
 
 
-def detect(model, dataloader, output_path, conf_thres, nms_thres):
+def detect(device, model, dataloader, output_path, conf_thres, nms_thres):
     """Inferences images with model.
 
     :param model: Model for inference
@@ -122,14 +126,16 @@ def detect(model, dataloader, output_path, conf_thres, nms_thres):
 
     model.eval()  # Set model to evaluation mode
 
-    Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
+    # Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
+
 
     img_detections = []  # Stores detections for each image index
     imgs = []  # Stores image paths
 
     for (img_paths, input_imgs) in tqdm.tqdm(dataloader, desc="Detecting"):
         # Configure input
-        input_imgs = Variable(input_imgs.type(Tensor))
+        # input_imgs = Variable(input_imgs.type(Tensor))
+        input_imgs = input_imgs.to(device)
 
         # Get detections
         with torch.no_grad():
@@ -261,6 +267,7 @@ def run():
     parser.add_argument("--n_cpu", type=int, default=8, help="Number of cpu threads to use during batch generation")
     parser.add_argument("--conf_thres", type=float, default=0.5, help="Object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.4, help="IOU threshold for non-maximum suppression")
+    parser.add_argument("--gpu", type=int, default=0, help="which gpu")
     args = parser.parse_args()
     print(f"Command line arguments: {args}")
 
@@ -268,6 +275,7 @@ def run():
     classes = load_classes(args.classes)  # List of class names
 
     detect_directory(
+        args.gpu,
         args.model,
         args.weights,
         args.images,

@@ -317,7 +317,7 @@ class Darknet(nn.Module):
         fp.close()
 
 
-def load_model(model_path, weights_path=None):
+def load_model(model_path, gpu, weights_path=None):
     """Loads the yolo model from file.
 
     :param model_path: Path to model definition file (.cfg)
@@ -327,8 +327,7 @@ def load_model(model_path, weights_path=None):
     :return: Returns model
     :rtype: Darknet
     """
-    device = torch.device("cuda" if torch.cuda.is_available()
-                          else "cpu")  # Select device for inference
+    device = torch.device(f"cuda:{gpu}" if torch.cuda.is_available() else "cpu")
     model = Darknet(model_path).to(device)
 
     model.apply(weights_init_normal)

@@ -20,6 +20,7 @@ from pytorchyolo.utils.augmentations import AUGMENTATION_TRANSFORMS
 from pytorchyolo.utils.parse_config import parse_data_config
 from pytorchyolo.utils.loss import compute_loss
 from pytorchyolo.utils.pattern_utils import *
+from pytorchyolo.utils.admm import *
 from pytorchyolo.test import _evaluate, _create_validation_data_loader
 
 from terminaltables import AsciiTable
@@ -76,7 +77,7 @@ def run():
     parser.add_argument("--iou_thres", type=float, default=0.5, help="Evaluation: IOU threshold required to qualify as detected")
     parser.add_argument("--conf_thres", type=float, default=0.1, help="Evaluation: Object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.5, help="Evaluation: IOU threshold for non-maximum suppression")
-    parser.add_argument("--logdir", type=str, default="/mnt/Data-Weight/1xN_new/yolov3/log/admm_retrain", help="Directory for training log files (e.g. for TensorBoard)")
+    parser.add_argument("--logdir", type=str, default="/mnt/Data-Weight/1xN_new/yolov3/log/admm", help="Directory for training log files (e.g. for TensorBoard)")
     parser.add_argument("--seed", type=int, default=-1, help="Makes results reproducable. Set -1 to disable.")
     parser.add_argument("--block_pattern_prune", action="store_true", help="block pattern prune")
     parser.add_argument("--N", type=int, default=4, help="size of N")
@@ -85,20 +86,14 @@ def run():
     parser.add_argument("--kernel_pattern_num", type=int, default=4, help="pattern number of every layer")
     parser.add_argument("--gpu", type=int, default=0, help="which gpu")
     parser.add_argument("--resume_from", type=str, default=None, help="Path to a checkpoint (.pth) to resume training.")
-    parser.add_argument("--admm_checkpoint", type=str, default=None, help="Path to ADMM checkpoint.")
-    parser.add_argument("--admm_retrain", action="store_true", help="ADMM retrain or not")
+    parser.add_argument("--rho", type=float, default=0.01, help="rho for admm")
     args = parser.parse_args()
     print(f"Command line arguments: {args}")
 
     if args.seed != -1:
         provide_determinism(args.seed)
 
-    if args.admm_retrain:
-        logger = Logger(f"{args.logdir}/{args.kernel_pattern_num}_patterns")  # Tensorboard logger
-    else:
-        args.logdir = "/mnt/Data-Weight/1xN_new/yolov3/log/every_layer_pattern"
-        logger = Logger(f"{args.logdir}/{args.kernel_pattern_num}_patterns")  # Tensorboard logger
-    
+    logger = Logger(f"{args.logdir}/{args.kernel_pattern_num}_patterns")  # Tensorboard logger
 
     # Create output directories if missing
     os.makedirs("output", exist_ok=True)
@@ -191,29 +186,12 @@ def run():
 
     # no pruning for first layer
     pr_cfg[0] = 0
-
-    count_divisible(model, N_cfg)
     
-    if (args.only_1_N_prune or args.block_pattern_prune) and (args.resume_from is None):
-        N_prune(model, pr_cfg, N_cfg)
-        if args.block_pattern_prune:
-            layer_top_k_pattern_list = layer_pattern(model, args)
-            block_pattern_prune(model, args, layer_top_k_pattern_list, N_cfg)
-        
-        print("\n---- Evaluating Model After Pruning ----")
-        # Evaluate the model on the validation set
-        metrics_output = _evaluate(
-            args.gpu,
-            model,
-            validation_dataloader,
-            class_names,
-            img_size=model.hyperparams['height'],
-            iou_thres=0.5,
-            conf_thres=0.01,
-            nms_thres=0.4,
-            verbose=args.verbose
-        )
-
+    if args.resume_from is None:
+        layer_top_k_pattern_list = layer_pattern(model, args)
+        admm_block_pattern_prune(model, N_cfg, layer_top_k_pattern_list)
+        Z, U = initialize_Z_and_U(model)
+        Y, V = initialize_Y_and_V(model)
 
     # -----------------------------
     # Optionally resume from checkpoint
@@ -252,6 +230,18 @@ def run():
         train_obj_loss_list = checkpoint['train_obj_loss_list']
         train_class_loss_list = checkpoint['train_class_loss_list']
         train_loss_list = checkpoint['train_loss_list']
+        W = checkpoint["W"]
+        # Z = checkpoint["Z"]
+        # Y = checkpoint["Y"]
+        # U = checkpoint["U"]
+        # V = checkpoint["V"]
+
+        Z = tuple(tensor.cpu() for tensor in checkpoint["Z"])
+        Y = tuple(tensor.cpu() for tensor in checkpoint["Y"])
+        U = tuple(tensor.cpu() for tensor in checkpoint["U"])
+        V = tuple(tensor.cpu() for tensor in checkpoint["V"])
+        layer_top_k_pattern_list = checkpoint["layer_top_k_pattern_list"]
+
         print(f"Resumed from epoch {checkpoint['epoch']}.")
 
         print('val_mAP_list:')
@@ -271,12 +261,6 @@ def run():
             verbose=args.verbose
         )
     
-    # Load ADMM checkpoint for ADMM retrain
-    if args.admm_checkpoint is not None:
-        print(f"ADMM Retrain ==> Load checkpoint: {args.admm_checkpoint}")
-        checkpoint = torch.load(args.admm_checkpoint, map_location=device)
-        model.load_state_dict(checkpoint['state_dict'])
-
     # if args.only_1_N_prune:
     #     N_prune(model, pr_rate, N)
 
@@ -315,6 +299,8 @@ def run():
             outputs = model(imgs)
 
             loss, loss_components = compute_loss(outputs, targets, model)
+
+            loss = admm_loss(args, device, model, Z, U, Y, V, loss)
 
             loss.backward()
 
@@ -427,17 +413,20 @@ def run():
                 if current_map > best_map:
                     best_map = current_map
                 
-                
+        W = update_W(model)
+        Z = update_Z(W, U, N_cfg, layer_top_k_pattern_list, model)
+        Y = update_Y(W, V, pr_cfg, N_cfg, model, Y, args)
+        U = update_U(U, W, Z)
+        V = update_V(V, W, Y)        
         # #############
         # Save progress
         # #############
 
         # Save model to checkpoint file
         if epoch % args.checkpoint_interval == 0:
-            if args.admm_retrain:
-                checkpoint_path = f"/mnt/Data-Weight/1xN_new/yolov3/checkpoint/admm_retrain/{args.kernel_pattern_num}_patterns/yolov3_last.pth"
-            else:
-                checkpoint_path = f"/mnt/Data-Weight/1xN_new/yolov3/checkpoint/every_layer_pattern/{args.kernel_pattern_num}_patterns/yolov3_last.pth"
+            
+            checkpoint_path = f"/mnt/Data-Weight/1xN_new/yolov3/checkpoint/admm/{args.kernel_pattern_num}_patterns/admm_yolov3_last.pth"
+            
             print(f"---- Saving checkpoint to: '{checkpoint_path}' ----")
             # Save model and optimizer state, plus current epoch
             torch.save({
@@ -454,17 +443,31 @@ def run():
                 'train_iou_loss_list': train_iou_loss_list,
                 'train_obj_loss_list': train_obj_loss_list,
                 'train_class_loss_list': train_class_loss_list,
-                'train_loss_list': train_loss_list 
+                'train_loss_list': train_loss_list,
+                'W': W,
+                'Z': Z,
+                'Y': Y,
+                'U': U,
+                'V': V,
+                'layer_top_k_pattern_list': layer_top_k_pattern_list
             }, checkpoint_path)
 
             if is_best:
-                if args.admm_retrain:
-                    shutil.copyfile(checkpoint_path, f"/mnt/Data-Weight/1xN_new/yolov3/checkpoint/admm_retrain/{args.kernel_pattern_num}_patterns/yolov3_best.pth")
-                else:    
-                    shutil.copyfile(checkpoint_path, f"/mnt/Data-Weight/1xN_new/yolov3/checkpoint/every_layer_pattern/{args.kernel_pattern_num}_patterns/yolov3_best.pth")
+                shutil.copyfile(checkpoint_path, f"/mnt/Data-Weight/1xN_new/yolov3/checkpoint/admm/{args.kernel_pattern_num}_patterns/admm_yolov3_best.pth")
+
+    
+    best_model_path = f"/mnt/Data-Weight/1xN_new/yolov3/checkpoint/admm/{args.kernel_pattern_num}_patterns/admm_yolov3_best.pth"
+    print(f"---- Loading best checkpoint after admm: '{best_model_path}' ----")
+    ckpt_prune_admm = torch.load(best_model_path, map_location=device)
+    model.load_state_dict(ckpt_prune_admm['state_dict'])
+    block_pattern_prune(model, args, layer_top_k_pattern_list, N_cfg)
+    retrain_1_N_prune(model, args, layer_top_k_pattern_list, pr_cfg, N_cfg)
+    best_model_path_pruned = f"/mnt/Data-Weight/1xN_new/yolov3/checkpoint/admm/{args.kernel_pattern_num}_patterns/admm_yolov3_best_pruned.pth"
+    torch.save({
+        'state_dict': model.state_dict()
+    }, best_model_path_pruned)
     print('best_map:')
     print(best_map)
-        
 
 
 if __name__ == "__main__":

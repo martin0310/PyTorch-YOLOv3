@@ -19,7 +19,7 @@ from pytorchyolo.utils.transforms import DEFAULT_TRANSFORMS
 from pytorchyolo.utils.parse_config import parse_data_config
 
 
-def evaluate_model_file(model_path, weights_path, img_path, class_names, batch_size=8, img_size=416,
+def evaluate_model_file(args, model_path, weights_path, img_path, class_names, batch_size=8, img_size=416,
                         n_cpu=8, iou_thres=0.5, conf_thres=0.5, nms_thres=0.5, verbose=True):
     """Evaluate model on validation dataset.
 
@@ -49,8 +49,9 @@ def evaluate_model_file(model_path, weights_path, img_path, class_names, batch_s
     """
     dataloader = _create_validation_data_loader(
         img_path, batch_size, img_size, n_cpu)
-    model = load_model(model_path, weights_path)
+    model = load_model(model_path, args.gpu, weights_path)
     metrics_output = _evaluate(
+        args,
         model,
         dataloader,
         class_names,
@@ -76,7 +77,7 @@ def print_eval_stats(metrics_output, class_names, verbose):
         print("---- mAP not measured (no detections found by model) ----")
 
 
-def _evaluate(model, dataloader, class_names, img_size, iou_thres, conf_thres, nms_thres, verbose):
+def _evaluate(gpu, model, dataloader, class_names, img_size, iou_thres, conf_thres, nms_thres, verbose):
     """Evaluate model on validation dataset.
 
     :param model: Model to evaluate
@@ -99,7 +100,8 @@ def _evaluate(model, dataloader, class_names, img_size, iou_thres, conf_thres, n
     """
     model.eval()  # Set model to evaluation mode
 
-    Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
+    # Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
+    device = torch.device(f"cuda:{gpu}" if torch.cuda.is_available() else "cpu")
 
     labels = []
     sample_metrics = []  # List of tuples (TP, confs, pred)
@@ -110,8 +112,8 @@ def _evaluate(model, dataloader, class_names, img_size, iou_thres, conf_thres, n
         targets[:, 2:] = xywh2xyxy(targets[:, 2:])
         targets[:, 2:] *= img_size
 
-        imgs = Variable(imgs.type(Tensor), requires_grad=False)
-
+        # imgs = Variable(imgs.type(Tensor), requires_grad=False)
+        imgs = imgs.to(device)
         with torch.no_grad():
             outputs = model(imgs)
             outputs = non_max_suppression(outputs, conf_thres=conf_thres, iou_thres=nms_thres)
@@ -172,6 +174,7 @@ def run():
     parser.add_argument("--iou_thres", type=float, default=0.5, help="IOU threshold required to qualify as detected")
     parser.add_argument("--conf_thres", type=float, default=0.01, help="Object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.4, help="IOU threshold for non-maximum suppression")
+    parser.add_argument("--gpu", type=int, default=0, help="which gpu")
     args = parser.parse_args()
     print(f"Command line arguments: {args}")
 
@@ -182,6 +185,7 @@ def run():
     class_names = load_classes(data_config["names"])  # List of class names
 
     precision, recall, AP, f1, ap_class = evaluate_model_file(
+        args,
         args.model,
         args.weights,
         valid_path,
