@@ -17,7 +17,7 @@ from pytorchyolo.utils.utils import load_classes, ap_per_class, get_batch_statis
 from pytorchyolo.utils.datasets import ListDataset
 from pytorchyolo.utils.transforms import DEFAULT_TRANSFORMS
 from pytorchyolo.utils.parse_config import parse_data_config
-
+from pytorchyolo.utils.pattern_utils import *
 
 def evaluate_model_file(args, model_path, weights_path, img_path, class_names, batch_size=8, img_size=416,
                         n_cpu=8, iou_thres=0.5, conf_thres=0.5, nms_thres=0.5, verbose=True):
@@ -50,8 +50,19 @@ def evaluate_model_file(args, model_path, weights_path, img_path, class_names, b
     dataloader = _create_validation_data_loader(
         img_path, batch_size, img_size, n_cpu)
     model = load_model(model_path, args.gpu, weights_path)
+
+    if args.weights_to_test is not None:
+        print(f"Load weight to test from checkpoint: {args.weights_to_test}")
+        device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
+        add_mask(model)
+        
+        print(f"Using device: {device}")
+        checkpoint = torch.load(args.weights_to_test, map_location=device)
+        model.load_state_dict(checkpoint['state_dict'])
+        mask_weight_with_mask(model)
+        
     metrics_output = _evaluate(
-        args,
+        args.gpu,
         model,
         dataloader,
         class_names,
@@ -175,6 +186,7 @@ def run():
     parser.add_argument("--conf_thres", type=float, default=0.01, help="Object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.4, help="IOU threshold for non-maximum suppression")
     parser.add_argument("--gpu", type=int, default=0, help="which gpu")
+    parser.add_argument("--weights_to_test", type=str, default=None, help="weights path to test")
     args = parser.parse_args()
     print(f"Command line arguments: {args}")
 

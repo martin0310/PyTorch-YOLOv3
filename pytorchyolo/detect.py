@@ -19,13 +19,14 @@ from pytorchyolo.models import load_model
 from pytorchyolo.utils.utils import load_classes, rescale_boxes, non_max_suppression, print_environment_info
 from pytorchyolo.utils.datasets import ImageFolder
 from pytorchyolo.utils.transforms import Resize, DEFAULT_TRANSFORMS
+from pytorchyolo.utils.pattern_utils import *
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.ticker import NullLocator
 
 
-def detect_directory(gpu, model_path, weights_path, img_path, classes, output_path,
+def detect_directory(weights_to_detect, gpu, model_path, weights_path, img_path, classes, output_path,
                      batch_size=8, img_size=416, n_cpu=8, conf_thres=0.5, nms_thres=0.5):
     """Detects objects on all images in specified directory and saves output images with drawn detections.
 
@@ -54,6 +55,16 @@ def detect_directory(gpu, model_path, weights_path, img_path, classes, output_pa
     model = load_model(model_path, gpu, weights_path)
 
     device = torch.device(f"cuda:{gpu}" if torch.cuda.is_available() else "cpu")
+
+    if weights_to_detect is not None:
+        print(f"Load weight to test from checkpoint: {weights_to_detect}")
+        device = torch.device(f"cuda:{gpu}" if torch.cuda.is_available() else "cpu")
+        add_mask(model)
+        
+        print(f"Using device: {device}")
+        checkpoint = torch.load(weights_to_detect, map_location=device)
+        model.load_state_dict(checkpoint['state_dict'])
+        mask_weight_with_mask(model)
 
     img_detections, imgs = detect(
         device,
@@ -268,6 +279,7 @@ def run():
     parser.add_argument("--conf_thres", type=float, default=0.5, help="Object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.4, help="IOU threshold for non-maximum suppression")
     parser.add_argument("--gpu", type=int, default=0, help="which gpu")
+    parser.add_argument("--weights_to_detect", type=str, default=None, help="weights path to detect")
     args = parser.parse_args()
     print(f"Command line arguments: {args}")
 
@@ -275,6 +287,7 @@ def run():
     classes = load_classes(args.classes)  # List of class names
 
     detect_directory(
+        args.weights_to_detect,
         args.gpu,
         args.model,
         args.weights,

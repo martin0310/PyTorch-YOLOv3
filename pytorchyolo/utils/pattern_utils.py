@@ -28,7 +28,23 @@ def add_mask(model):
     print(conv_num)
 
 
+def conv2d_forward_without_mask(self, x):
+    return nn.functional.conv2d(
+        x, self.weight, bias=self.bias,
+        stride=self.stride, padding=self.padding, dilation=self.dilation,
+        groups=self.groups
+    )
 
+def mask_weight_with_mask(model):
+    print('\n==> mask weight with mask..\n')
+    
+    with torch.no_grad():
+        for name, module in model.named_modules():
+            if isinstance(module, nn.Conv2d):
+                if hasattr(module, "weight"):
+                    if hasattr(module, "mask"):
+                        module.weight.data *= module.mask
+                        module.forward = types.MethodType(conv2d_forward_without_mask, module)
 
 
 def N_prune(model, pr_cfg, N_cfg):
