@@ -25,3 +25,6 @@ run.sh
 
 # ignore coco2014 symlink
 coco2014
+
+# ignore temp_run.sh
+temp_run.sh
