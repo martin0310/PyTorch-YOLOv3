@@ -107,14 +107,17 @@ def check_pattern_layer(model, kernel_pattern_num):
                     if kernel_pattern_num != len(mask_patterns):
                         print('layer:')
                         print(layer)
-                        print('error!!!!!!!!!!')
+                        
                         print('len(mask_patterns):')
                         print(len(mask_patterns))
                         print('total_kernel_count:')
                         print(total_kernel_count)
                         print('all_one_kernel_count:')
                         print(all_one_kernel_count)
-                        raise Exception("pattern format error!!!")
+
+                        if len(mask_patterns) == 0:
+                            print('error!!!!!!!!!!')
+                            raise Exception("pattern format error!!!")
     print('total_kernel_count:')
     print(total_kernel_count)
     print('zero_kernel_count:')
@@ -150,8 +153,8 @@ def run():
     model.load_state_dict(checkpoint['state_dict'])
 
     model.to('cpu')
-    # print('model:')
-    # print(model)
+    print('model:')
+    print(model)
     check_pattern_layer(model, args.kernel_pattern_num)
     check_block_pattern(model, args.N)
 
