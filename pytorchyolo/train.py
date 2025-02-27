@@ -276,6 +276,18 @@ def run():
         print(f"ADMM Retrain ==> Load checkpoint: {args.admm_checkpoint}")
         checkpoint = torch.load(args.admm_checkpoint, map_location=device)
         model.load_state_dict(checkpoint['state_dict'])
+        print("\n---- Evaluating Model After Loading ADMM Checkpoint ----")
+        metrics_output = _evaluate(
+            args.gpu,
+            model,
+            validation_dataloader,
+            class_names,
+            img_size=model.hyperparams['height'],
+            iou_thres=0.5,
+            conf_thres=0.01,
+            nms_thres=0.4,
+            verbose=args.verbose
+        )
 
     # if args.only_1_N_prune:
     #     N_prune(model, pr_rate, N)
