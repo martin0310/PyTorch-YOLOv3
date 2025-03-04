@@ -334,7 +334,7 @@ def retrain_1_N_prune(model, args, layer_top_k_pattern_list, pr_cfg, N_cfg):
 
 # 1xN prune for admm(only prune 1x1 conv layer)
 def N_prune_admm(model, pr_cfg, N_cfg):
-    print('==> 1xN prune..')
+    print('==> 1xN prune for admm(only prune 1x1 conv layer)..')
 
     with torch.no_grad():
 
