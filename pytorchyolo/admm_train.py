@@ -188,6 +188,8 @@ def run():
     pr_cfg[0] = 0
     
     if args.resume_from is None:
+        # only 1xN prune for 1x1 conv layer before admm
+        N_prune_admm(model, pr_cfg, N_cfg)
         layer_top_k_pattern_list = layer_pattern(model, args)
         admm_block_pattern_prune(model, N_cfg, layer_top_k_pattern_list)
         Z, U = initialize_Z_and_U(model)
@@ -280,7 +282,8 @@ def run():
     # skip epoch zero, because then the calculations for when to evaluate/checkpoint makes more intuitive sense
     # e.g. when you stop after 30 epochs and evaluate every 10 epochs then the evaluations happen after: 10,20,30
     # instead of: 0, 10, 20
-    
+    print('args.rho')
+    print(args.rho)
     for epoch in range(start_epoch, args.epochs+1):
 
         print("\n---- Training Model ----")

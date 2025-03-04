@@ -330,3 +330,45 @@ def retrain_1_N_prune(model, args, layer_top_k_pattern_list, pr_cfg, N_cfg):
 
                     # _3_3_layer_count += 1
                     conv_layer_index += 1
+
+
+# 1xN prune for admm(only prune 1x1 conv layer)
+def N_prune_admm(model, pr_cfg, N_cfg):
+    print('==> 1xN prune..')
+
+    with torch.no_grad():
+
+        conv_num = 0
+        for name, module in model.named_modules():
+            if isinstance(module, nn.Conv2d):
+                if hasattr(module, "weight"):
+                    if hasattr(module, "mask"):
+                        if conv_num == 0:
+                            conv_num += 1
+                            continue
+
+                        if module.weight.shape[-2:] == (1, 1):
+                            if module.weight.shape[0] % N_cfg[conv_num] != 0:
+                                conv_num += 1 
+                                continue
+
+                            w = module.weight.detach().clone().cpu()
+                            c_out, c_in, k_1, k_2 = w.shape
+                            w = w.permute(1, 0, 2, 3)
+                            w = w.contiguous().view(-1,N_cfg[conv_num]*k_1*k_2) 
+                            prune = int(w.size(0)*pr_cfg[conv_num])
+                            w = torch.sum(torch.abs(w), 1)
+                            _, indice = torch.topk(w, prune, largest=False)
+                            m = torch.ones(w.size(0))
+                            m[indice] = 0
+                            m = torch.unsqueeze(m, 1)
+                            m = m.repeat(1, N_cfg[conv_num]*k_1*k_2)
+                            m = m.view(c_in, c_out, k_1, k_2)
+                            m = m.permute(1, 0, 2, 3)
+
+                            module.mask.copy_(m)
+
+                        conv_num += 1
+
+        print('conv_num in N_prune_admm function:')
+        print(conv_num)

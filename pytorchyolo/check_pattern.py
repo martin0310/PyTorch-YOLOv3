@@ -23,6 +23,9 @@ def check_block_pattern(model, N):
 
     conv_layer_index = 0
 
+    one_in_1_1_kernel_count = 0
+    zero_in_1_1_kernel_count = 0
+
     for name, module in model.named_modules():
         if isinstance(module, nn.Conv2d):
             if hasattr(module, "weight") and hasattr(module, "mask"):
@@ -46,11 +49,23 @@ def check_block_pattern(model, N):
                     for i in range(module.mask.size(1)):
                         for j in range(0, module.mask.size(0), N_cfg[conv_layer_index]):
                             if (module.mask[j][i] == 1):
+                                one_in_1_1_kernel_count += 1
                                 for index in range(1, N_cfg[conv_layer_index]):
+                                    one_in_1_1_kernel_count += 1
                                     if not torch.equal(module.mask[j][i], module.mask[j + index][i]):
                                         raise Exception("1x1 conv error!!!")
-
+                            elif (module.mask[j][i] == 0):
+                                zero_in_1_1_kernel_count += 1
+                                for index in range(1, N_cfg[conv_layer_index]):
+                                    zero_in_1_1_kernel_count += 1
+                                    if not torch.equal(module.mask[j][i], module.mask[j + index][i]):
+                                        raise Exception("1x1 conv error!!!")
                 conv_layer_index += 1
+
+    print('one_in_1_1_kernel_count:')
+    print(one_in_1_1_kernel_count)
+    print('zero_in_1_1_kernel_count:')
+    print(zero_in_1_1_kernel_count)
 
 
 def check_pattern_layer(model, kernel_pattern_num):
