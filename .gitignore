@@ -9,10 +9,16 @@ backup
 weights/*.weights
 weights/*.conv.*
 __pycache__
+
+# ignore checkpoints
 checkpoints/
 
 .vscode/
+
+# ignore logs
 logs/
+admm_retrain_logs/
+admm_logs/
 
 .python-version
 

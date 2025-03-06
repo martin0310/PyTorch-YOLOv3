@@ -76,7 +76,7 @@ def run():
     parser.add_argument("--iou_thres", type=float, default=0.5, help="Evaluation: IOU threshold required to qualify as detected")
     parser.add_argument("--conf_thres", type=float, default=0.1, help="Evaluation: Object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.5, help="Evaluation: IOU threshold for non-maximum suppression")
-    parser.add_argument("--logdir", type=str, default="/mnt/Data-Weight/1xN_new/yolov3/log/admm_retrain", help="Directory for training log files (e.g. for TensorBoard)")
+    parser.add_argument("--logdir", type=str, default="logs", help="Directory for training log files (e.g. for TensorBoard)")
     parser.add_argument("--seed", type=int, default=-1, help="Makes results reproducable. Set -1 to disable.")
     parser.add_argument("--block_pattern_prune", action="store_true", help="block pattern prune")
     parser.add_argument("--N", type=int, default=4, help="size of N")
@@ -94,10 +94,9 @@ def run():
         provide_determinism(args.seed)
 
     if args.admm_retrain:
-        logger = Logger(f"{args.logdir}/{args.kernel_pattern_num}_patterns")  # Tensorboard logger
+        logger = Logger('admm_retrain_logs')  # Tensorboard logger
     else:
-        args.logdir = "/mnt/Data-Weight/1xN_new/yolov3/log/every_layer_pattern"
-        logger = Logger(f"{args.logdir}/{args.kernel_pattern_num}_patterns")  # Tensorboard logger
+        logger = Logger(args.logdir)  # Tensorboard logger
     
 
     # Create output directories if missing
@@ -447,9 +446,9 @@ def run():
         # Save model to checkpoint file
         if epoch % args.checkpoint_interval == 0:
             if args.admm_retrain:
-                checkpoint_path = f"/mnt/Data-Weight/1xN_new/yolov3/checkpoint/admm_retrain/{args.kernel_pattern_num}_patterns/yolov3_last.pth"
+                checkpoint_path = f"checkpoints/admm_retrain_yolov3_last.pth"
             else:
-                checkpoint_path = f"/mnt/Data-Weight/1xN_new/yolov3/checkpoint/every_layer_pattern/{args.kernel_pattern_num}_patterns/yolov3_last.pth"
+                checkpoint_path = f"checkpoints/yolov3_last.pth"
             print(f"---- Saving checkpoint to: '{checkpoint_path}' ----")
             # Save model and optimizer state, plus current epoch
             torch.save({
@@ -471,9 +470,9 @@ def run():
 
             if is_best:
                 if args.admm_retrain:
-                    shutil.copyfile(checkpoint_path, f"/mnt/Data-Weight/1xN_new/yolov3/checkpoint/admm_retrain/{args.kernel_pattern_num}_patterns/yolov3_best.pth")
+                    shutil.copyfile(checkpoint_path, f"checkpoints/admm_retrain_yolov3_best.pth")
                 else:    
-                    shutil.copyfile(checkpoint_path, f"/mnt/Data-Weight/1xN_new/yolov3/checkpoint/every_layer_pattern/{args.kernel_pattern_num}_patterns/yolov3_best.pth")
+                    shutil.copyfile(checkpoint_path, f"checkpoints/yolov3_best.pth")
     print('best_map:')
     print(best_map)
         
