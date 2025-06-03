@@ -116,7 +116,7 @@ def calculate_flops(model, input_size, device, load_pruned_model):
                                 weight = module.weight[out_channel, in_channel, kernel_y, kernel_x]
                                 # total_flops += 2 * output_height * output_width
                                 total_flops +=  output_height * output_width
-            print('total_flops:')
+            print('total_macs:')
             print(total_flops)
     # Register hook for all modules
     hooks = []
@@ -188,9 +188,9 @@ def run():
     print(f"Total Convolutional Parameters: {total_conv_params_human_readable}")
     print(f"Total Depth-wise Parameters: {total_depthwise_conv_params_human_readable}")
     print(f"Total Non-zero Depth-wise Parameters: {non_zero_depthwise_weights_human_readable}")
-    print(f"Total FLOPs: {total_human_readable_flops}")
-    print(f"Total Depth-wise FLOPs: {total_depthwise_flops_human_readable}")
-    print(f"Total Non-zero Depth-wise FLOPs: {total_non_zero_depthwise_flops_human_readable}")
+    print(f"Total MACs: {total_human_readable_flops}")
+    print(f"Total Depth-wise MACs: {total_depthwise_flops_human_readable}")
+    print(f"Total Non-zero Depth-wise MACs: {total_non_zero_depthwise_flops_human_readable}")
 
     
 
