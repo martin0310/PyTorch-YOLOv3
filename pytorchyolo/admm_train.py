@@ -233,10 +233,6 @@ def run():
         train_class_loss_list = checkpoint['train_class_loss_list']
         train_loss_list = checkpoint['train_loss_list']
         W = checkpoint["W"]
-        # Z = checkpoint["Z"]
-        # Y = checkpoint["Y"]
-        # U = checkpoint["U"]
-        # V = checkpoint["V"]
 
         Z = tuple(tensor.cpu() for tensor in checkpoint["Z"])
         Y = tuple(tensor.cpu() for tensor in checkpoint["Y"])
@@ -263,22 +259,6 @@ def run():
             verbose=args.verbose
         )
     
-    # if args.only_1_N_prune:
-    #     N_prune(model, pr_rate, N)
-
-    # if metrics_output is not None:
-    #     precision, recall, AP, f1, ap_class = metrics_output
-    #     evaluation_metrics = [
-    #         ("validation/precision", precision.mean()),
-    #         ("validation/recall", recall.mean()),
-    #         ("validation/mAP", AP.mean()),
-    #         ("validation/f1", f1.mean())]
-    #     # logger.list_of_scalars_summary(evaluation_metrics, epoch)
-    #     logger.list_of_scalars_summary(evaluation_metrics, -1)
-
-
-
-
     # skip epoch zero, because then the calculations for when to evaluate/checkpoint makes more intuitive sense
     # e.g. when you stop after 30 epochs and evaluate every 10 epochs then the evaluations happen after: 10,20,30
     # instead of: 0, 10, 20
