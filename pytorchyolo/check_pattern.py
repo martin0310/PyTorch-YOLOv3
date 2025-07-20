@@ -164,7 +164,7 @@ def run():
     print(f"Using device: {device}")
 
     add_mask(model)
-    checkpoint = torch.load(args.weights, map_location=device)
+    checkpoint = torch.load(args.weights, map_location=device, weights_only=False)
     model.load_state_dict(checkpoint['state_dict'])
 
     model.to('cpu')

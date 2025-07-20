@@ -57,7 +57,7 @@ def evaluate_model_file(args, model_path, weights_path, img_path, class_names, b
         add_mask(model)
         
         print(f"Using device: {device}")
-        checkpoint = torch.load(args.weights_to_test, map_location=device)
+        checkpoint = torch.load(args.weights_to_test, map_location=device, weights_only=False)
         model.load_state_dict(checkpoint['state_dict'])
         mask_weight_with_mask(model)
         
@@ -176,7 +176,6 @@ def run():
     print_environment_info()
     parser = argparse.ArgumentParser(description="Evaluate validation data.")
     parser.add_argument("-m", "--model", type=str, default="config/yolov3.cfg", help="Path to model definition file (.cfg)")
-    parser.add_argument("-w", "--weights", type=str, default="weights/yolov3.weights", help="Path to weights or checkpoint file (.weights or .pth)")
     parser.add_argument("-d", "--data", type=str, default="config/coco.data", help="Path to data config file (.data)")
     parser.add_argument("-b", "--batch_size", type=int, default=8, help="Size of each image batch")
     parser.add_argument("-v", "--verbose", action='store_true', help="Makes the validation more verbose")
@@ -186,7 +185,7 @@ def run():
     parser.add_argument("--conf_thres", type=float, default=0.01, help="Object confidence threshold")
     parser.add_argument("--nms_thres", type=float, default=0.4, help="IOU threshold for non-maximum suppression")
     parser.add_argument("--gpu", type=int, default=0, help="which gpu")
-    parser.add_argument("--weights_to_test", type=str, default=None, help="weights path to test")
+    parser.add_argument("--weights_to_test", type=str, default="weights/yolov3.weights", help="weights path to test")
     args = parser.parse_args()
     print(f"Command line arguments: {args}")
 
@@ -199,7 +198,7 @@ def run():
     precision, recall, AP, f1, ap_class = evaluate_model_file(
         args,
         args.model,
-        args.weights,
+        args.weights_to_test,
         valid_path,
         class_names,
         batch_size=args.batch_size,

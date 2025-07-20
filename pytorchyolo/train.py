@@ -236,7 +236,7 @@ def run():
 
     if args.resume_from is not None:
         print(f"Resuming training from checkpoint: {args.resume_from}")
-        checkpoint = torch.load(args.resume_from, map_location=device)
+        checkpoint = torch.load(args.resume_from, map_location=device, weights_only=False)
         model.load_state_dict(checkpoint['state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer'])
         start_epoch = checkpoint['epoch'] + 1
@@ -270,7 +270,7 @@ def run():
     # Load ADMM checkpoint for ADMM retrain
     if args.admm_checkpoint is not None:
         print(f"ADMM Retrain ==> Load checkpoint: {args.admm_checkpoint}")
-        checkpoint = torch.load(args.admm_checkpoint, map_location=device)
+        checkpoint = torch.load(args.admm_checkpoint, map_location=device, weights_only=False)
         model.load_state_dict(checkpoint['state_dict'])
         print("\n---- Evaluating Model After Loading ADMM Checkpoint ----")
         metrics_output = _evaluate(

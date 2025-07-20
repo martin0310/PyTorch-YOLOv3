@@ -217,7 +217,7 @@ def run():
 
     if args.resume_from is not None:
         print(f"Resuming training from checkpoint: {args.resume_from}")
-        checkpoint = torch.load(args.resume_from, map_location=device)
+        checkpoint = torch.load(args.resume_from, map_location=device, weights_only=False)
         model.load_state_dict(checkpoint['state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer'])
         start_epoch = checkpoint['epoch'] + 1
@@ -441,7 +441,7 @@ def run():
     
     best_model_path = f"checkpoints/admm_yolov3_best.pth"
     print(f"---- Loading best checkpoint after admm: '{best_model_path}' ----")
-    ckpt_prune_admm = torch.load(best_model_path, map_location=device)
+    ckpt_prune_admm = torch.load(best_model_path, map_location=device, weights_only=False)
     model.load_state_dict(ckpt_prune_admm['state_dict'])
     block_pattern_prune(model, args, layer_top_k_pattern_list, N_cfg)
     retrain_1_N_prune(model, args, layer_top_k_pattern_list, pr_cfg, N_cfg)

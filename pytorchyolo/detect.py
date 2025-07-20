@@ -62,7 +62,7 @@ def detect_directory(weights_to_detect, gpu, model_path, weights_path, img_path,
         add_mask(model)
         
         print(f"Using device: {device}")
-        checkpoint = torch.load(weights_to_detect, map_location=device)
+        checkpoint = torch.load(weights_to_detect, map_location=device, weights_only=False)
         model.load_state_dict(checkpoint['state_dict'])
         mask_weight_with_mask(model)
 
