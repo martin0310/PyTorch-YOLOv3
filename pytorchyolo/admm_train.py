@@ -273,6 +273,10 @@ def run():
         for batch_i, (_, imgs, targets) in enumerate(tqdm.tqdm(dataloader, desc=f"Training Epoch {epoch}")):
             batches_done = len(dataloader) * epoch + batch_i
 
+            #=================================
+            # Uncomment to test the flow only
+            #=================================
+            
             # if batch_i == 5:
             #     break
 

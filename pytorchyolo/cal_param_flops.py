@@ -168,8 +168,6 @@ def run():
 
     model.to('cpu')
     check_only_normal_convs(model)
-    # print('model:')
-    # print(model)
     
     # Calculate total convolutional parameters
     total_conv_params, total_depthwise_conv_params, non_zero_depthwise_weights = calculate_conv_parameters(model, args.load_pruned_model)

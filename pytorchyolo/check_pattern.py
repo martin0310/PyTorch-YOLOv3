@@ -17,7 +17,7 @@ from pytorchyolo.utils.utils import print_environment_info
 
 
 def check_block_pattern(model, N):
-    print('check_block_pattern =============>')
+    print('check the block pattern and count the pruned and unpruned weights in the 1x1 conv layer and fc layers =============>')
 
     N_cfg = [N] * 75
 
@@ -29,9 +29,6 @@ def check_block_pattern(model, N):
     for name, module in model.named_modules():
         if isinstance(module, nn.Conv2d):
             if hasattr(module, "weight") and hasattr(module, "mask"):
-                # if conv_layer_index == 0:
-                #     conv_layer_index += 1
-                #     continue
 
                 if module.weight.shape[-2:] == (3, 3):
                     for i in range(module.mask.size(1)):
@@ -84,13 +81,6 @@ def check_pattern_layer(model, kernel_pattern_num):
                 
                 #check if it is 3x3 kernel
                 if module.weight.shape[-2:] == (3, 3):
-                    
-                    # if layer == 0:
-                    #     layer += 1
-                    #     for i in range(module.weight.size(0)):
-                    #         for j in range(module.weight.size(1)):
-                    #             total_kernel_count = total_kernel_count + 1
-                    #     continue
 
                     mask_patterns = defaultdict(int)
                 
@@ -101,7 +91,6 @@ def check_pattern_layer(model, kernel_pattern_num):
                             # if torch.count_nonzero(module.mask[i][j]) == 4:
                             if (module.mask[i][j] == 1).sum().item() == 4:
                                 four_one_in_kernel_mask_count += 1
-                                # count = count + 1
                                 
                                 kernel = module.mask[i][j].detach().clone()
                                 flat_kernel = kernel.view(-1)
@@ -119,6 +108,7 @@ def check_pattern_layer(model, kernel_pattern_num):
                                 all_one_kernel_count += 1
                     layer = layer + 1
                     
+                    # if len(mask_patterns) not equals to kernel_pattern_num --> In some layers, not all predefined patterns will be used
                     if kernel_pattern_num != len(mask_patterns):
                         print('layer:')
                         print(layer)
